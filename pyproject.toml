@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+
+
+[project]
+# the name of your project
+name = "edmsci"
+# version
+version = "0.0.1"
+# description
+description = "This is a python package to calculate the disruption index and embedding disruptiveness measure of the paper by using a citation network."
+
+readme = "README.md"
+
+requires-python = ">=3.8"
+
+authors = [
+    {name = "munchkim", email = "munjkim@iu.edu"}
+]
+
+dependencies = ['tqdm','numpy','scikit-learn', 'torch','scipy', 'numba']
+
+keywords = ["science of science", "disruption index","disruption","citation", "innovation", "edm","embedding disruptiveness measure"]
+
+
+[tool.setuptools.packages]
+find = {}
