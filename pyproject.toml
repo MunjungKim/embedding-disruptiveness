@@ -1,29 +1,41 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
-
-
 [project]
-# the name of your project
-name = "edmsci"
-# version
-version = "0.0.1"
-# description
-description = "This is a python package to calculate the disruption index and embedding disruptiveness measure of the paper by using a citation network."
-
+name = "embedding-disruptiveness"
+version = "2.0.0"
+description = "A Python package to calculate the disruption index and embedding disruptiveness measure using a citation network."
 readme = "README.md"
-
 requires-python = ">=3.8"
-
 authors = [
-    {name = "munchkim", email = "munjkim@iu.edu"}
+    { name = "Munjung Kim", email = "munjkim@iu.edu" },
+    { name = "Skojaku", email = "skojaku@binghamton.edu" }
+]
+license = { text = "MIT" }
+keywords = ["science of science", "disruption index", "citation", "innovation", "edm", "embedding disruptiveness measure"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent"
+]
+dependencies = [
+    "tqdm",
+    "numpy",
+    "scikit-learn",
+    "torch",
+    "scipy",
+    "numba"
 ]
 
-dependencies = ['tqdm','numpy','scikit-learn', 'torch','scipy', 'numba']
+[project.urls]
+Homepage = "https://github.com/MunjungKim/embedding-disruptiveness"
+Repository = "https://github.com/MunjungKim/embedding-disruptiveness"
+Documentation ="https://github.com/MunjungKim/embedding-disruptiveness#readme"
 
-keywords = ["science of science", "disruption index","disruption","citation", "innovation", "edm","embedding disruptiveness measure"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["embedding_disruptiveness", "embedding_disruptiveness.*"]
 
-
-[tool.setuptools.packages]
-find = {}
+[project.optional-dependencies]
+tests = ["pytest", "pytest-cov"]
