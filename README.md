@@ -1,6 +1,6 @@
 # embedding-disruptiveness
 
-**Measure how disruptive a paper or patent is — using graph embeddings on citation networks.**
+A Python package for measuring how disruptive a paper or patent is, using graph embeddings on citation networks.
 
 `embedding-disruptiveness` learns node2vec-style embeddings from citation graphs and computes an *Embedding Disruptiveness Measure (EDM)* that captures whether a work disrupts or consolidates its field. It also provides the classic *Disruption Index (DI)* as a built-in utility.
 
@@ -12,15 +12,21 @@
 
 ---
 
-## Features
+## Table of Contents
 
-- **End-to-end pipeline** — load a citation network, train embeddings, compute disruptiveness in a few lines of code
-- **Node2Vec with directional skip-gram** — biased random walks with (p, q) parameters for flexible neighborhood exploration
-- **Model parallelism** — splits in-vectors and out-vectors across two GPUs for large-scale networks
-- **Multiple negative samplers** — Configuration Model, Stochastic Block Model, Erdos-Renyi, and conditional context samplers
-- **Modularity-aware training** — optional modularity regularization for community-sensitive embeddings
-- **Mixed-precision training** — AMP support for faster training with lower memory usage
-- **Built-in disruption index** — classic DI₁ / DI₅ / CDI computation alongside embedding-based measures
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Input Format](#input-format)
+- [Training Embeddings](#training-embeddings)
+- [Computing the Disruption Index](#computing-the-disruption-index)
+- [Negative Samplers](#negative-samplers)
+- [Custom Training Loop](#custom-training-loop)
+- [API Reference](#api-reference)
+- [How It Works](#how-it-works)
+- [Citation](#citation)
+- [License](#license)
+
+---
 
 ## Installation
 
@@ -42,14 +48,6 @@ uv pip install embedding-disruptiveness
 git clone https://github.com/MunjungKim/embedding-disruptiveness.git
 cd embedding-disruptiveness
 pip install -e .
-```
-
-Or with uv:
-
-```bash
-git clone https://github.com/MunjungKim/embedding-disruptiveness.git
-cd embedding-disruptiveness
-uv pip install -e .
 ```
 
 ### Requirements
@@ -80,21 +78,20 @@ trainer.train()
 # Embeddings and cosine distances are saved to save_dir
 ```
 
-## Usage Guide
+For a detailed walkthrough of the method and results, see the [blog post](https://munjungkim.github.io/embedding-disruptiveness-blog/).
 
-### Input Format
+## Input Format
 
-Your citation network should be a **scipy sparse matrix** saved as `.npz`. Rows/columns represent nodes (papers/patents), and non-zero entries represent citation edges.
+Your citation network should be a **scipy sparse matrix** saved as `.npz`. Rows and columns represent nodes (papers or patents), and non-zero entries represent citation edges.
 
 ```python
 import scipy.sparse as sp
 
-# Example: build a sparse adjacency matrix and save it
 net = sp.csr_matrix(adjacency_data)
 sp.save_npz("citation_network.npz", net)
 ```
 
-You can also convert an **edge list** (numpy array) to a sparse adjacency matrix using `to_adjacency_matrix`:
+You can also convert an edge list to a sparse adjacency matrix:
 
 ```python
 import numpy as np
@@ -109,14 +106,9 @@ weighted_edges = np.array([[0, 1, 0.5], [1, 2, 1.0], [2, 3, 0.8]])
 net = to_adjacency_matrix(weighted_edges, edgelist=True)
 ```
 
-### Training Embeddings
+## Training Embeddings
 
-`EmbeddingTrainer` handles the full pipeline:
-
-1. Loads the sparse network
-2. Generates biased random walks (node2vec)
-3. Trains a Word2Vec-style model with triplet loss
-4. Saves in-vectors, out-vectors, and cosine distance matrices
+`EmbeddingTrainer` handles the full pipeline — loading the network, generating biased random walks, training a Word2Vec-style model with triplet loss, and saving the resulting embeddings.
 
 ```python
 trainer = edm.EmbeddingTrainer(
@@ -136,12 +128,13 @@ trainer = edm.EmbeddingTrainer(
 trainer.train()
 ```
 
-### Computing the Disruption Index
+## Computing the Disruption Index
+
+The package also provides standalone functions for computing the disruption index directly from a citation network, without training embeddings.
 
 ```python
 import embedding_disruptiveness as edm
 
-# net: sparse adjacency matrix (citing → cited)
 # 1-step disruption index
 di = edm.calc_disruption_index(net)
 
@@ -149,11 +142,11 @@ di = edm.calc_disruption_index(net)
 di_2step = edm.calc_multistep_disruption_index(net)
 ```
 
-Two computation methods are available via the `method` parameter:
+Three computation methods are available via the `method` parameter:
 
-- `"matrix"` — sparse matrix multiplication. Fast for small networks (< 1M nodes), but uses O(N²) memory.
+- `"matrix"` — sparse matrix multiplication. Fast for small networks (< 1M nodes), but uses more memory.
 - `"iterative"` — Numba-JIT row-wise loop. Memory-efficient, scales to 100M+ nodes.
-- `"auto"` (default) — automatically picks `"matrix"` if N < 1M, otherwise `"iterative"`.
+- `"auto"` (default) — picks `"matrix"` for networks under 1M nodes, `"iterative"` otherwise.
 
 ```python
 # Force iterative method for a large network
@@ -163,9 +156,9 @@ di = edm.calc_disruption_index(large_net, method="iterative")
 di = edm.calc_disruption_index(net, method="matrix", batch_size=2**15)
 ```
 
-### Choosing a Negative Sampler
+## Negative Samplers
 
-Different null models yield different notions of "expected" connections:
+Different null models yield different notions of "expected" connections. You can choose from several built-in samplers:
 
 ```python
 from embedding_disruptiveness.utils import (
@@ -184,9 +177,9 @@ sampler = SBMNodeSampler(adj_matrix, group_membership)
 sampler = ErdosRenyiNodeSampler(adj_matrix)
 ```
 
-### Custom Training Loop
+## Custom Training Loop
 
-For fine-grained control, use the components directly:
+If you need more control, you can use the individual components directly:
 
 ```python
 from embedding_disruptiveness.models import Word2Vec
@@ -194,7 +187,10 @@ from embedding_disruptiveness.loss import Node2VecTripletLoss
 from embedding_disruptiveness.datasets import TripletDataset
 from embedding_disruptiveness.torch import train
 
-model = Word2Vec(vocab_size=num_nodes, embedding_size=128, padding_idx=num_nodes, device_in="cuda:0", device_out="cuda:1")
+model = Word2Vec(
+    vocab_size=num_nodes, embedding_size=128,
+    padding_idx=num_nodes, device_in="cuda:0", device_out="cuda:1"
+)
 dataset = TripletDataset(center, context, negative_sampler, epochs=5)
 loss_fn = Node2VecTripletLoss()
 
@@ -214,11 +210,13 @@ train(model=model, dataset=dataset, loss_func=loss_fn, batch_size=1024)
 
 ## How It Works
 
-1. **Random Walks**: Node2Vec-style biased walks explore the citation graph, capturing both local and global structure via (p, q) parameters.
+1. **Random Walks** — Node2Vec-style biased walks explore the citation graph, capturing both local and global structure via (p, q) parameters.
 
-2. **Directional Skip-Gram**: A Word2Vec model learns separate *in-vectors* (as a target) and *out-vectors* (as a context) for each node, preserving the directionality of citations.
+2. **Directional Skip-Gram** — A Word2Vec model learns separate *in-vectors* (as a target) and *out-vectors* (as a context) for each node, preserving the directionality of citations.
 
-3. **Embedding Disruptiveness**: Cosine distances between a focal paper's in-vector and its references'/citations' out-vectors quantify how much the paper departs from — or reinforces — existing knowledge.
+3. **Embedding Disruptiveness** — Cosine distances between a focal paper's in-vector and its references'/citations' out-vectors quantify how much the paper departs from, or reinforces, existing knowledge.
+
+For more details, see our [paper](https://arxiv.org/abs/2502.16845) and [blog post](https://munjungkim.github.io/embedding-disruptiveness-blog/).
 
 ## Citation
 
