@@ -23,6 +23,7 @@ A Python package for measuring how disruptive a paper or patent is, using graph 
 - [Custom Training Loop](#custom-training-loop)
 - [API Reference](#api-reference)
 - [How It Works](#how-it-works)
+- [Authors](#authors)
 - [Citation](#citation)
 - [License](#license)
 
@@ -185,13 +186,28 @@ If you need more control, you can use the individual components directly:
 from embedding_disruptiveness.models import Word2Vec
 from embedding_disruptiveness.loss import Node2VecTripletLoss
 from embedding_disruptiveness.datasets import TripletDataset
+from embedding_disruptiveness.utils import ConfigModelNodeSampler
 from embedding_disruptiveness.torch import train
 
+num_nodes = net.shape[0]
+
+# Set up the noise sampler
+noise_sampler = ConfigModelNodeSampler(ns_exponent=1.0)
+noise_sampler.fit(net)
+
+# Build model, dataset, and loss
 model = Word2Vec(
     vocab_size=num_nodes, embedding_size=128,
     padding_idx=num_nodes, device_in="cuda:0", device_out="cuda:1"
 )
-dataset = TripletDataset(center, context, negative_sampler, epochs=5)
+dataset = TripletDataset(
+    adjmat=net,
+    window_length=5,
+    num_walks=10,
+    noise_sampler=noise_sampler,
+    padding_id=num_nodes,
+    epochs=5,
+)
 loss_fn = Node2VecTripletLoss()
 
 train(model=model, dataset=dataset, loss_func=loss_fn, batch_size=1024)
@@ -218,15 +234,22 @@ train(model=model, dataset=dataset, loss_func=loss_fn, batch_size=1024)
 
 For more details, see our [paper](https://arxiv.org/abs/2502.16845) and [blog post](https://munjungkim.github.io/embedding-disruptiveness-blog/).
 
+## Authors
+
+- [Munjung Kim](https://github.com/MunjungKim)
+- [Sadamori Kojaku](https://github.com/skojaku)
+- [Yong-Yeol Ahn](https://github.com/yy)
+
 ## Citation
 
 If you use this package in your research, please cite:
 
 ```bibtex
-@article{kim2024embedding,
-  title={Embedding Disruptiveness Measure},
-  author={Kim, Munjung and others},
-  year={2024}
+@article{kim2025uncovering,
+  title={Uncovering simultaneous breakthroughs with a robust measure of disruptiveness},
+  author={Kim, Munjung and Kojaku, Sadamori and Ahn, Yong-Yeol},
+  journal={arXiv preprint arXiv:2502.16845},
+  year={2025}
 }
 ```
 
